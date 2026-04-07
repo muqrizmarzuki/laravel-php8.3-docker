@@ -1,0 +1,35 @@
+FROM php:8.1-fpm-alpine3.14
+
+# Install System Dependencies
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
+    libpng-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    git \
+    postgresql-dev \
+    mariadb-dev \
+    curl \
+    gnupg \
+    vim \
+    nodejs \
+    npm
+
+# Install PHP Extensions
+RUN docker-php-ext-install -j$(nproc) pdo_mysql bcmath zip pcntl posix sockets
+RUN pecl install redis && docker-php-ext-enable redis
+
+# Configure Nginx and Supervisor
+RUN mkdir -p /var/log/supervisor /run/nginx
+COPY docker/conf.d/nginx.conf /etc/nginx/conf.d/default.conf
+
+COPY docker/conf.d/supervisord.alpine.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Set Working Directory
+WORKDIR /var/www
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+EXPOSE 80
