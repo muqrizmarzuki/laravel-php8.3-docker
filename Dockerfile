@@ -14,6 +14,8 @@ RUN apk update && apk add --no-cache \
     libxml2-dev \
     oniguruma-dev \
     libzip-dev \
+    nodejs \
+    npm \
     fontconfig \
     ttf-freefont \
     libx11 \
@@ -46,9 +48,5 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN echo "upload_max_filesize=100M" > /usr/local/etc/php/conf.d/z-uploads.ini \
     && echo "post_max_size=100M" >> /usr/local/etc/php/conf.d/z-uploads.ini \
     && echo "max_execution_time=300" >> /usr/local/etc/php/conf.d/z-uploads.ini
-
-# NGINX Upload Limits
-RUN mkdir -p /etc/nginx/conf.d \
-    && echo "client_max_body_size 100M;" > /etc/nginx/conf.d/limits.conf
 
 EXPOSE 80
