@@ -1,33 +1,39 @@
-FROM php:8.3-fpm
+FROM php:8.1-fpm-alpine3.14
 
-# Install System Dependencies
-RUN apt-get update && apt-get install -y \
+RUN apk update && apk add --no-cache \
+    bash \
+    curl \
+    zip \
+    unzip \
     nginx \
     supervisor \
     libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libwebp-dev \
+    libxml2-dev \
+    oniguruma-dev \
     libzip-dev \
-    zip \
-    unzip \
-    git \
-    libpq-dev \
-    curl \
-    gnupg \
-    vim
+    fontconfig \
+    ttf-freefont \
+    libx11 \
+    libxext \
+    libxrender \
+    freetype \
+    libjpeg-turbo \
+    wkhtmltopdf \
+    && ln -s /usr/bin/wkhtmltopdf /usr/local/bin/wkhtmltopdf
 
-# Install Node.js (NodeSource)
-RUN mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update && apt-get install nodejs -y
-
-# Install PHP Extensions
-RUN docker-php-ext-install -j$(nproc) pdo_mysql bcmath zip pcntl posix sockets
-RUN pecl install redis && docker-php-ext-enable redis
+# Configure GD and install PHP extensions
+RUN docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
+    && docker-php-ext-install -j$(nproc) gd exif pdo pdo_mysql zip
 
 # Configure Nginx and Supervisor
 RUN mkdir -p /var/log/supervisor /run/nginx
-COPY docker/conf.d/nginx.conf /etc/nginx/sites-available/default
-RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+COPY docker/conf.d/nginx.conf /etc/nginx/http.d/default.conf
 
 COPY docker/conf.d/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
@@ -35,44 +41,6 @@ COPY docker/conf.d/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 WORKDIR /var/www
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Install wkhtmltopdf + GD dependencies in one layer
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-        wget \
-        ca-certificates \
-        libfontconfig1 \
-        libxrender1 \
-        xfonts-75dpi \
-        xfonts-base \
-        xz-utils \
-        libxext6 \
-        libx11-6 \
-        libwebp-dev \
-        libjpeg-dev \
-        libpng-dev \
-        libfreetype6-dev \
-    ; \
-    \
-    # Temporary Bullseye repo for libssl1.1
-    echo "deb http://deb.debian.org/debian bullseye main" > /etc/apt/sources.list.d/bullseye.list; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends libssl1.1; \
-    rm /etc/apt/sources.list.d/bullseye.list; \
-    \
-    # Install wkhtmltopdf
-    wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.buster_amd64.deb; \
-    dpkg -i wkhtmltox_0.12.6-1.buster_amd64.deb || apt-get install -f -y; \
-    rm wkhtmltox_0.12.6-1.buster_amd64.deb; \
-    \
-    # Install PHP extensions
-    docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
-    docker-php-ext-install -j$(nproc) gd exif; \
-    \
-    # Cleanup
-    apt-get clean; \
-    rm -rf /var/lib/apt/lists/*
 
 # PHP Upload Limits
 RUN echo "upload_max_filesize=100M" > /usr/local/etc/php/conf.d/z-uploads.ini \
