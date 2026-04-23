@@ -5,6 +5,10 @@ RUN apt-get update && apt-get install -y \
     nginx \
     supervisor \
     libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libwebp-dev \
+    libmagickwand-dev \
     libzip-dev \
     zip \
     unzip \
@@ -21,8 +25,25 @@ RUN mkdir -p /etc/apt/keyrings \
     && apt-get update && apt-get install nodejs -y
 
 # Install PHP Extensions
-RUN docker-php-ext-install -j$(nproc) pdo_mysql bcmath zip pcntl posix sockets
-RUN pecl install redis && docker-php-ext-enable redis
+RUN docker-php-ext-configure gd --with-jpeg --with-freetype --with-webp
+RUN docker-php-ext-install -j$(nproc) pdo_mysql bcmath zip pcntl posix sockets gd exif
+RUN pecl install redis imagick \
+    && docker-php-ext-enable redis imagick
+
+
+# # Chromium + Puppeteer for Spatie Laravel PDF (Browsershot)
+RUN apt-get install -y \
+    chromium \
+    fonts-liberation \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libnss3 \
+    libxss1
+
+# PHP Upload Limits
+RUN echo "upload_max_filesize=100M" > /usr/local/etc/php/conf.d/z-uploads.ini \
+    && echo "post_max_size=100M" >> /usr/local/etc/php/conf.d/z-uploads.ini \
+    && echo "max_execution_time=300" >> /usr/local/etc/php/conf.d/z-uploads.ini
 
 # Configure Nginx and Supervisor
 RUN mkdir -p /var/log/supervisor /run/nginx
