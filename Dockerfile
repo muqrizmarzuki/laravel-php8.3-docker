@@ -30,15 +30,20 @@ RUN docker-php-ext-install -j$(nproc) pdo_mysql bcmath zip pcntl posix sockets g
 RUN pecl install redis imagick \
     && docker-php-ext-enable redis imagick
 
+    # Install Python + pdfplumber for PDF SLT extraction
+RUN apt-get install -y --no-install-recommends python3 python3-pip \
+    && pip3 install pdfplumber --break-system-packages \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# # Chromium + Puppeteer for Spatie Laravel PDF (Browsershot)
-RUN apt-get install -y \
+# Chromium + Puppeteer for Spatie Laravel PDF (Browsershot)
+RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
     libnss3 \
-    libxss1
+    libxss1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # PHP Upload Limits
 RUN echo "upload_max_filesize=100M" > /usr/local/etc/php/conf.d/z-uploads.ini \
